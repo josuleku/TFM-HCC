@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ## Cargamos el csv de NASIR tumor y peritumor donde no hay genes duplicados
-## y lo arreglamos.
+## y realizamos unos arreglos en el dataset.
 ```{r}
 library(tidyverse)
 library(SummarizedExperiment)
