@@ -1,0 +1,122 @@
+---
+title: "Normalizacion NASIR_T_P"
+author: "Josu Lecuona"
+date: "2023-02-21"
+output: html_document
+---
+
+## Cargamos el csv de NASIR tumor y peritumor donde no hay genes duplicados
+## y lo arreglamos.
+```{r}
+library(tidyverse)
+library(SummarizedExperiment)
+setwd("C:\\Users\\MI\\Desktop\\MASTER\\TFM\\NASIR")
+install.packages("WriteXLS")
+library("WriteXLS")
+
+
+
+
+
+NASIR_P <- readRDS("NASIR_P.rds")
+NASIR_T <- readRDS("NASIR_T.rds")
+
+
+NASIR_T_P <- left_join(NASIR_P,NASIR_T,by="Gene",suffix=c("P","T"))
+
+
+## Quitamos las ultimas filas de NASIR porque no nos sirven
+NASIR_T_P <- NASIR_T_P[1:58721,]
+
+G <- NASIR_T_P$Gene
+
+NASIR_T_P <- NASIR_T_P %>%
+  select(-Gene)
+
+rownames(NASIR_T_P) <- G
+```
+
+## Asignamos el nombre de counts a NASIR, pero ponemos entre parentesis para que
+## NASIR no se vaya de las variables, y despues lo convertimos en matriz.
+```{r}
+counts <- (NASIR_T_P)
+counts <- as.matrix(counts)
+
+## Le damos los rangos que tiene cada fila de la matriz, Granges=genomisranges.
+rowRanges <- GRanges(rep(c("chr1", "chr2"), c(58720,1)),
+                     IRanges(floor(runif(58721, 1e5, 1e6)), width=100),
+                     strand=sample(c("+", "-"), 58721, TRUE),
+                     feature_id=list(NASIR_T_P[1:58721,1]),
+                     row.names(NASIR_T_P[1:58721,1]))
+
+## Metemos la informacion de las muestras en colData
+colData <- DataFrame(Type=c(rep("Peritumor",13),rep("Tumor",30)),
+                     Patient=str_replace(colnames(NASIR_T_P),"[:alpha:]",""))
+
+se <- SummarizedExperiment(assays=list(counts=counts), colData=colData,rowRanges = rowRanges)
+
+## Suma total de read counts. 
+colSums(assay(se))
+
+## Visualizar los primeros seis datos de la tabla.
+head(assay(se), 3)
+rowRanges(se)
+## La metadata que hay en ranges
+str(metadata(rowRanges(se)))
+colData(se)
+## Clase de summarized experiment, que es un paquete
+class(se)
+
+```
+
+
+
+```{r}
+
+library("DESeq2")
+
+## Vemos cada columna si es peritumor o tumor
+se$Type
+
+## Este experimento esta basado entre pacientes y tipo de muestra, y definimos la
+## formula, que dependen de las variables de coldata
+dds_raw <- DESeqDataSet(se, design = ~ Patient + Type)
+##Para convertir en matriz, con al menos una columna,, las filas de coldata,
+##corresponden a columnas de countdata
+colData(dds_raw)
+
+##Vemos los resumenes de dds_raw de muestras, counts y row ranges.
+##Visualizar los primeros 6 datos de la tabla de muestras
+head(assay(dds_raw))
+rowRanges(dds_raw)
+##Visualizar la clase de dds_raw
+class(dds_raw)
+
+## Visualizacion las primeras seis filas de la tabla de conteos
+head(counts(dds_raw))
+rownames(dds_raw)
+## Realiza un resumen de dds_raw
+dds_raw
+
+#Normalizacion
+colSums(counts(dds_raw))
+#Calcular el size factor y anadir a los datos, el size factor asigna a cada columna de la matriz 
+#de conteo un valor, el factor de tamano, de modo que los valores de conteo en las columnas se pueden
+#llevar a una escala comun.
+
+dds_raw <- estimateSizeFactors(dds_raw)
+sizeFactors(dds_raw)
+
+# counts()  nos permite recuperarlos read counts normalizados
+NASIR_T_P_normalized  <- counts(dds_raw, normalized = TRUE)
+NASIR_T_P_normalized
+# Ahora mirar a la suma de las columnas, despues de la normalizacion
+colSums(counts(dds_raw, normalized=TRUE))
+
+#Observar los normalized counts
+head(NASIR_T_P_normalized)
+
+write.csv(NASIR_T_P_normalized, "NASIR_T_P_normalized.csv")
+```
+
+
