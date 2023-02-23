@@ -1,0 +1,97 @@
+---
+title: "misc_RNA_norm_filtrado"
+author: "Josu Lecuona"
+date: "2023-02-22"
+output: html_document
+---
+
+```{r}
+setwd("C:\\Users\\MI\\Desktop\\MASTER\\TFM\\NASIR\\misc_RNA")
+library(tidyverse)
+misc <- read.csv2("misc_RNA.csv", header = TRUE)
+setwd("C:\\Users\\MI\\Desktop\\MASTER\\TFM\\NASIR\\NASIR_T_P(normalizados)")
+NASIR_T_P <-read.csv2("NASIR_T_P_NORMALIZED(BIEN).csv", header = TRUE)
+
+##Eliminamos columna 2
+misc[,2] <- NULL
+
+## Hacemos un inner join para que solamente tengamos los reads de miscelaneos.
+misc_RNA <- merge(x = NASIR_T_P, y = misc, by = c("X"))
+
+## Le asigno como una variable con el nombre G  a la columna de gene
+G <- misc_RNA$X
+
+##A la tabla de NASIR le quito la columna de gene. 
+misc_RNA <- misc_RNA%>%
+  select(-X)
+
+## Los nombres de los genes los meto como si fuera una variable de esta manera
+## diferenciandose de los numeros
+rownames(misc_RNA) <- G
+```
+
+
+
+```{r}
+## 2 hace referencia a las columnas, pasamos todas las columnas a numericas
+detect<-apply(misc_RNA, 2, function(x){as.numeric(as.character(x))})
+detect <- as.data.frame(detect)
+
+suma_gen <- rowSums(detect)
+misc_RNA <- cbind(misc_RNA, suma_gen)
+
+misc_RNA <- misc_RNA %>% 
+  filter(suma_gen > 0)
+
+quantile(misc_RNA$suma_gen, 0.25)
+
+##Quitamos aquellos genes que tengan menos o igual que el cuantil 0,25. 
+
+misc_RNA <- misc_RNA %>% 
+  filter(suma_gen > 1.75)
+
+hist(misc_RNA$suma_gen, breaks = 100000 ,xlim= c(0, 1000))
+summary(misc_RNA$suma_gen > 200000)
+
+## Quitamos aquellos genes que no tengan en por lo menos en 5 pacientes el treshold del quantile 0.25
+
+
+for (fila in 1:nrow(misc_RNA)){
+  suma_pacientes <-  0
+  for (columna in 1:43){
+    if (misc_RNA[fila,columna] < 1.75){
+      suma_pacientes <- suma_pacientes + 1
+    }}
+  if (suma_pacientes > 38){
+    misc_RNA[fila, 44] <- 0
+  } else{
+    misc_RNA[fila, 44] <- 1
+  }
+}
+
+misc_RNA <- misc_RNA %>% 
+  filter(suma_gen == 1)
+
+sd_misc_RNA <- data.frame()
+misc_RNA$suma_gen <- NULL
+##Hacer sd de cada gen
+
+for (fila in 1:nrow(misc_RNA)){
+  sd <- sd(misc_RNA[fila,])
+  sd_misc_RNA <- rbind(sd_misc_RNA, sd) 
+}
+
+##Unir las desviaciones estandar de cada gen a la tabla de protein coding
+misc_RNA <- cbind(misc_RNA, sd_misc_RNA)
+
+summary(sd_misc_RNA)
+
+## Quitar los que tengan desviacion estandar menor que el primer cuartil de todas las desviaciones 
+misc_RNA <- misc_RNA %>% 
+  filter(sd_misc_RNA > 1.89)
+
+write.csv(misc_RNA, "misc_RNA_filtrado.csv")
+```
+
+
+

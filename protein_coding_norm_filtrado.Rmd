@@ -1,0 +1,101 @@
+---
+title: "prot_coding_norm_filtrado"
+author: "Josu Lecuona"
+date: "2023-02-22"
+output: html_document
+---
+
+```{r}
+setwd("C:\\Users\\MI\\Desktop\\MASTER\\TFM\\NASIR\\protein_coding")
+library(tidyverse)
+p_c <- read.csv2("protein_coding.csv", header = TRUE)
+
+setwd("C:\\Users\\MI\\Desktop\\MASTER\\TFM\\NASIR\\NASIR_T_P(normalizados)")
+NASIR_T_P <-read.csv2("NASIR_T_P_NORMALIZED(BIEN).csv", header = TRUE)
+
+##Eliminamos columna 2
+p_c[,2] <- NULL
+
+## Hacemos un inner join para que solamente tengamos los reads de protein coding.
+protein_coding<- merge(x = NASIR_T_P, y = p_c, by = c("X"))
+
+## Le asigno como una variable con el nombre G  a la columna de gene
+G <- protein_coding$X
+
+##A la tabla le quito la columna de genes 
+protein_coding <- protein_coding%>%
+  select(-X)
+
+## Los nombres de los genes los meto como si fuera una variable de esta manera
+## diferenciandose de los numeros
+rownames(protein_coding) <- G
+```
+
+
+
+```{r}
+##Pasamos todo el dataset a numericos para poder hacer el rowsums
+detect<-apply(protein_coding, 2, function(x){as.numeric(as.character(x))})## 2 hace referencia a las columnas, 
+##pasamos todas las columnas a numericas
+detect <- as.data.frame(detect)
+suma_gen <- rowSums(detect)
+
+
+#Uno la suma de los reads con la tabla
+protein_coding <- cbind(protein_coding, suma_gen)
+
+
+protein_coding<- protein_coding %>% 
+  filter(suma_gen > 0)
+
+##Sacamos el cuantil 0.25
+quantile(protein_coding$suma_gen, 0.25)
+
+##Quitamos aquellos genes que tengan igual o menos reads que el cuantil 0.25. 
+
+protein_coding <- protein_coding %>% 
+  filter(suma_gen > 51.477)
+
+##Quitamos aquellos genes que no tengan en al menos 5 pacientes el cuantil 0.25
+for (fila in 1:nrow(protein_coding)){
+  suma_pacientes <-  0
+  for (columna in 1:43){
+    if (protein_coding[fila,columna] < 51.477){
+      suma_pacientes <- suma_pacientes + 1
+    }}
+  if (suma_pacientes > 38){
+    protein_coding[fila, 44] <- 0
+  } else{
+    protein_coding[fila, 44] <- 1
+  }
+}
+
+protein_coding <- protein_coding %>% 
+  filter(suma_gen == 1)
+
+##Quitar columna suma_gen
+protein_coding$suma_gen <- NULL
+
+sd_pc <- data.frame()
+
+##Hacer sd de cada gen
+
+for (fila in 1:nrow(protein_coding)){
+  sd <- sd(protein_coding[fila,])
+  sd_pc <- rbind(sd_pc, sd) 
+}
+
+##Unir las desviaciones estandar de cada gen a la tabla de protein coding
+protein_coding <- cbind(protein_coding, sd_pc)
+
+summary(sd_pc)
+
+## Quitar los que tengan desviacion estandar menor que el 1 cuartil de todas las desviaciones 
+protein_coding <- protein_coding %>% 
+  filter(sd_pc > 5.67)
+
+
+write.csv(protein_coding, "protein_coding_filtrado.csv")
+```
+
+
