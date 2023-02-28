@@ -6,11 +6,13 @@ output: html_document
 ---
 
 ```{r}
-setwd("C:\\Users\\MI\\Desktop\\MASTER\\TFM\\NASIR\\misc_RNA")
 library(tidyverse)
+
+setwd("C:\\Users\\MI\\Desktop\\MASTER\\TFM\\NASIR\\misc_RNA")
 misc <- read.csv2("misc_RNA.csv", header = TRUE)
+
 setwd("C:\\Users\\MI\\Desktop\\MASTER\\TFM\\NASIR\\NASIR_T_P(normalizados)")
-NASIR_T_P <-read.csv2("NASIR_T_P_NORMALIZED(BIEN).csv", header = TRUE)
+NASIR_T_P <-read.csv2("NASIR_T_P(sin duplicados).csv", header = TRUE)
 
 ##Eliminamos columna 2
 misc[,2] <- NULL
