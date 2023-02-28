@@ -1,0 +1,58 @@
+---
+title: "LICA_normalization"
+author: "Josu Lecuona"
+date: "2023-02-24"
+output: html_document
+---
+
+```{r}
+library(readr)
+library(tidyverse)
+library(SummarizedExperiment)
+library(DESeq2)
+
+setwd("C:\\Users\\MI\\Desktop\\MASTER\\TFM\\LICA")
+
+LICA <-read.csv2(file="LICA_SIN_DUPLICADOS.csv")
+
+LICA[,163:165] <- NULL
+
+genes <- LICA$gene_id
+
+LICA <- LICA%>%
+  select(-gene_id)
+
+
+## Los nombres de los genes los asigno como rownames.
+rownames(LICA) <- genes
+
+LICA <- LICA %>% 
+  select(-CHC1189T)
+
+LICA_matrix <- data.matrix(LICA)
+
+head(LICA_matrix)
+dim(LICA_matrix)
+
+meta.data = read.csv2(file="Metadata_LICAcsv.csv")
+
+## Solo nos quedamos con 160 filas ya que son los pacientes que hay en el dataset de LICA.
+meta.data = meta.data[1:160,]
+head(meta.data)
+
+head(meta.data)
+
+count.data.set <- DESeqDataSetFromMatrix(countData=LICA_matrix, 
+                                         colData=meta.data, design= ~ 1) 
+
+count.data.set.object <- DESeq(count.data.set)
+
+
+vsd <- vst(count.data.set.object)
+
+norm.data = assay(vsd)
+
+write.csv(norm.data, "LICA_normalizado.csv")
+
+```
+
